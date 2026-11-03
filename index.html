@@ -716,7 +716,7 @@ h1 { font-size: clamp(1.05rem,4.5vw,1.4rem); color: #f9fcff; }
 <div id="results"></div>
 <div id="empty">該当するデータが見つかりませんでした</div>
 <div id="visitorCounter">
-  <div class="visitor-badge"><span aria-hidden="true">🐾</span><span id="visitorCaption">サイト累計足跡</span><span id="visitorDigits" aria-label="公開後に集計"><span>–</span><span>–</span><span>–</span><span>–</span><span>–</span><span>–</span></span><span>回</span></div>
+  <div class="visitor-badge"><span aria-hidden="true">🐾</span><span id="visitorCaption">あなたの足跡は</span><span id="visitorDigits" aria-label="公開後に集計"><span>–</span><span>–</span><span>–</span><span>–</span><span>–</span><span>–</span></span><span>番目</span></div>
   <p id="kiribanMessage" role="status" aria-live="polite" hidden>キリ番おめでとう❗️</p>
   <span id="busuanzi_value_page_pv" aria-hidden="true"></span>
 </div>
@@ -1252,8 +1252,8 @@ function renderVisitorCount(rawValue) {
     digit.textContent = number;
     return digit;
   }));
-  digits.setAttribute('aria-label', 'サイト累計足跡 ' + total + '回');
-  caption.textContent = 'サイト累計足跡';
+  digits.setAttribute('aria-label', 'あなたの足跡は ' + total + '番目');
+  caption.textContent = 'あなたの足跡は';
   // Two or more identical non-zero digits, checked before display zero-padding.
   // No localStorage/cookies: congratulations are recomputed for this visit only.
   message.hidden = !/^([1-9])\1+$/.test(total);
@@ -1264,10 +1264,10 @@ function setupVisitorCounter() {
   const value = document.getElementById('busuanzi_value_page_pv');
   const digits = document.getElementById('visitorDigits');
   const message = document.getElementById('kiribanMessage');
-  caption.textContent = 'サイト累計足跡';
+  caption.textContent = 'あなたの足跡は';
   message.hidden = true;
   if (!/^https?:$/.test(location.protocol)) {
-    digits.setAttribute('aria-label', '公開後にサイト累計足跡を集計');
+    digits.setAttribute('aria-label', '公開後に足跡を集計');
     return;
   }
   normalizeVisitorCounterUrl();
@@ -1279,8 +1279,8 @@ function setupVisitorCounter() {
   function showCounterFailure() {
     if (received) return;
     message.hidden = true;
-    digits.setAttribute('aria-label', 'サイト累計足跡を取得できませんでした');
-    caption.textContent = 'サイト累計足跡（取得できません）';
+    digits.setAttribute('aria-label', '足跡を取得できませんでした');
+    caption.textContent = 'あなたの足跡は（取得できません）';
   }
   const remote = document.createElement('script');
   remote.async = true;
