@@ -680,6 +680,12 @@ h1 { font-size: clamp(1.05rem,4.5vw,1.4rem); color: #f9fcff; }
 #visitorDigits span { display: inline-block; min-width: 10px; padding: 1px 2px; background: #253e3c; border: 1px inset #789386; color: #cbeeb0; font: bold 12px/1.15 ui-monospace, 'Courier New', monospace; text-align: center; text-shadow: 0 0 3px rgba(197,245,150,.25); }
 #busuanzi_value_page_pv { display: none; }
 
+
+/* Shared site total and visit-only lucky-number message. */
+#visitorCounter { flex-direction: column; gap: 5px; }
+#kiribanMessage { margin: 0; padding: 4px 9px; color: #624414; background: #fff2c8; border: 1px solid #c9a54d; border-radius: 4px; font-size: 11px; font-weight: 700; }
+#kiribanMessage[hidden] { display: none; }
+
 </style>
 </head>
 <body>
@@ -710,7 +716,8 @@ h1 { font-size: clamp(1.05rem,4.5vw,1.4rem); color: #f9fcff; }
 <div id="results"></div>
 <div id="empty">該当するデータが見つかりませんでした</div>
 <div id="visitorCounter">
-  <div class="visitor-badge"><span aria-hidden="true">🐾</span><span id="visitorCaption">公開後に集計</span><span id="visitorDigits" aria-label="公開後に集計"><span>–</span><span>–</span><span>–</span><span>–</span><span>–</span><span>–</span></span><span>番目</span></div>
+  <div class="visitor-badge"><span aria-hidden="true">🐾</span><span id="visitorCaption">サイト累計足跡</span><span id="visitorDigits" aria-label="公開後に集計"><span>–</span><span>–</span><span>–</span><span>–</span><span>–</span><span>–</span></span><span>回</span></div>
+  <p id="kiribanMessage" role="status" aria-live="polite" hidden>キリ番おめでとう❗️</p>
   <span id="busuanzi_value_page_pv" aria-hidden="true"></span>
 </div>
 
@@ -1219,28 +1226,68 @@ typeModalOverlay.addEventListener('click', (e) => {
   if (e.target === typeModalOverlay) typeModalOverlay.classList.remove('show');
 });
 /* ---------- shared visitor counter: page views, including repeat visits ---------- */
-// Busuanzi stores the count remotely, keyed to the deployed page URL.
-// Loading the HTML locally / inline never sends a counting request.
+// page_pv is the remote total for this page, across all visitors, NOT a per-user counter.
+// Keep this page's total separate from other repositories on itoen-poke.github.io.
+// Canonicalize URL aliases before loading the service so query strings/index.html
+// do not fragment the count. Search/filter operations never load the service again.
+function normalizeVisitorCounterUrl() {
+  if (location.hostname === 'itoen-poke.github.io' && /^\/batofaku(?:\/index\.html|\/)?$/.test(location.pathname)) {
+    const canonical = '/batofaku/';
+    if (location.pathname !== canonical || location.search || location.hash) {
+      try { history.replaceState(history.state, '', canonical); } catch (_) { /* keep page usable */ }
+    }
+  }
+}
+function renderVisitorCount(rawValue) {
+  const digits = document.getElementById('visitorDigits');
+  const message = document.getElementById('kiribanMessage');
+  const caption = document.getElementById('visitorCaption');
+  const raw = String(rawValue).trim();
+  message.hidden = true;
+  if (!/^\d+$/.test(raw)) return false;
+  const total = raw.replace(/^0+(?=\d)/, '');
+  const display = total.padStart(6, '0');
+  digits.replaceChildren(...[...display].map(number => {
+    const digit = document.createElement('span');
+    digit.textContent = number;
+    return digit;
+  }));
+  digits.setAttribute('aria-label', 'サイト累計足跡 ' + total + '回');
+  caption.textContent = 'サイト累計足跡';
+  // Two or more identical non-zero digits, checked before display zero-padding.
+  // No localStorage/cookies: congratulations are recomputed for this visit only.
+  message.hidden = !/^([1-9])\1+$/.test(total);
+  return true;
+}
 function setupVisitorCounter() {
-  const caption=document.getElementById('visitorCaption');
-  const value=document.getElementById('busuanzi_value_page_pv');
-  const digits=document.getElementById('visitorDigits');
-  if (!/^https?:$/.test(location.protocol)) { caption.textContent='公開後に集計';return; }
-  const observer=new MutationObserver(()=>{
-    const text=value.textContent.trim();
-    if(!/^\d+$/.test(text))return;
-    const count=String(Number(text)).padStart(6,'0');
-    digits.replaceChildren(...[...count].map(number=>{const digit=document.createElement('span');digit.textContent=number;return digit;}));
-    digits.setAttribute('aria-label','累計'+Number(text)+'回目の訪問');
-    caption.textContent='あなたの足跡';
+  const caption = document.getElementById('visitorCaption');
+  const value = document.getElementById('busuanzi_value_page_pv');
+  const digits = document.getElementById('visitorDigits');
+  const message = document.getElementById('kiribanMessage');
+  caption.textContent = 'サイト累計足跡';
+  message.hidden = true;
+  if (!/^https?:$/.test(location.protocol)) {
+    digits.setAttribute('aria-label', '公開後にサイト累計足跡を集計');
+    return;
+  }
+  normalizeVisitorCounterUrl();
+  let received = false;
+  const observer = new MutationObserver(() => {
+    received = renderVisitorCount(value.textContent) || received;
   });
-  observer.observe(value,{childList:true,subtree:true,characterData:true});
-  caption.textContent='集計中';
-  const remote=document.createElement('script');remote.async=true;
-  remote.src='https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js';
-  remote.onerror=()=>{caption.textContent='集計できません';};
+  observer.observe(value, { childList: true, subtree: true, characterData: true });
+  function showCounterFailure() {
+    if (received) return;
+    message.hidden = true;
+    digits.setAttribute('aria-label', 'サイト累計足跡を取得できませんでした');
+    caption.textContent = 'サイト累計足跡（取得できません）';
+  }
+  const remote = document.createElement('script');
+  remote.async = true;
+  remote.src = 'https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js';
+  remote.onerror = showCounterFailure;
   document.head.appendChild(remote);
-  setTimeout(()=>{if(!/^\d+$/.test(value.textContent.trim()))caption.textContent='集計できません';},10000);
+  setTimeout(showCounterFailure, 10000);
 }
 setupVisitorCounter();
 /* ---------- end shared visitor counter ---------- */
